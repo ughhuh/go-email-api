@@ -12,6 +12,9 @@ func main() {
 	// setup
 	configLoader("config.json") // load config
 	router := gin.Default()
+	router.Use(gin.Logger())
+	router.Use(gin.Recovery())
+
 	// get emails for email inbox
 	router.GET("/inbox/:email_id", getEmailsForUser)
 	router.GET("/email/:email_id", getEmailById)
