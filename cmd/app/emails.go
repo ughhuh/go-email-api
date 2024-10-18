@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"log"
 	"math/rand"
@@ -35,10 +36,9 @@ type CreateEmailRequest struct {
 func getEmailsForUser(c *gin.Context) {
 	// get id from uri
 	email := c.Param("email_id")
-	db := connectToDb()
-	defer db.Close()
-	query := `select message_id, "from", date" from emails where message_id in (select mail_id from inboxes where user_id = $1);`
-	rows, err := db.Query(query, email)
+	// query := `select message_id, "from", date" from emails where message_id in (select mail_id from inboxes where user_id = $1);`
+	smtm := c.MustGet("getSimpleEmailByMsgId").(*sql.Stmt)
+	rows, err := smtm.Query(email)
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Failed to retrieve emails."})
 		return
@@ -60,10 +60,8 @@ func getEmailsForUser(c *gin.Context) {
 
 func getEmailById(c *gin.Context) {
 	emailID := c.Param("email_id")
-	db := connectToDb()
-	defer db.Close()
-	query := `SELECT message_id, body, "from", "to" FROM emails WHERE message_id = $1`
-	rows, err := db.Query(query, emailID)
+	smtm := c.MustGet("getEmailByMsgId").(*sql.Stmt)
+	rows, err := smtm.Query(emailID)
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Failed to retrieve emails."})
 		return
@@ -95,10 +93,8 @@ func createNewInbox(c *gin.Context) {
 	domainIndex := rand.Intn(len(allowedDomains))
 	username := requestBody.Username + "@" + allowedDomains[domainIndex]
 	// post new inbox
-	db := connectToDb()
-	defer db.Close()
-	query := `INSERT INTO users(email_address) values ($1);`
-	_, err = db.Exec(query, username)
+	smtm := c.MustGet("createNewUser").(*sql.Stmt)
+	_, err = smtm.Exec(username)
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Failed to create new email address."})
 		return
@@ -120,11 +116,9 @@ func deleteInbox(c *gin.Context) {
 		return
 	}
 	// get emails
-	db := connectToDb()
-	defer db.Close()
+	smtm := c.MustGet("getMsgIdByUserId").(*sql.Stmt)
+	rows, err := smtm.Query(requestBody.Address)
 
-	query := `select mail_id from inboxes where user_id = $1`
-	rows, err := db.Query(query, requestBody.Address)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -140,8 +134,8 @@ func deleteInbox(c *gin.Context) {
 		emails = append(emails, entry)
 	}
 	// delete user and inboxes
-	query = `DELETE FROM users WHERE email_address = $1;`
-	_, err = db.Exec(query, requestBody.Address)
+	smtm = c.MustGet("deleteUserByUserId").(*sql.Stmt)
+	_, err = smtm.Exec(requestBody.Address)
 
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Failed to delete email user."})
@@ -149,8 +143,9 @@ func deleteInbox(c *gin.Context) {
 	}
 	// delete email entries
 	if len(emails) > 0 {
-		query = `delete from emails where message_id in ANY($1)`
-		_, err = db.Exec(query, pq.Array(emails))
+		smtm = c.MustGet("deleteMsgByMsgId").(*sql.Stmt)
+		_, err = smtm.Exec(requestBody.Address)
+
 		if err != nil {
 			c.JSON(500, gin.H{"error": "Failed to delete user's emails."})
 			return

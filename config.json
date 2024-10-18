@@ -1,6 +1,10 @@
 {
     "port": 8080,
+    "ssl_mode": "disable",
     "allowed_domains": [
         "vm4408.kaj.pouta.csc.fi"
+    ],
+    "trusted_proxies": [
+        "127.0.0.1"
     ]
 }
