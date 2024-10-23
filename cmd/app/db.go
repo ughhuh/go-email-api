@@ -30,6 +30,3 @@ func connectToDb() *sql.DB {
 
 // so on init we can call a function that creates an object that prepares queries
 // then those queries are fetched by router functions and executed there
-
-// store prepped queries
-//

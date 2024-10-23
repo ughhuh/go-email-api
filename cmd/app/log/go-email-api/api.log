@@ -1,0 +1,10 @@
+[GIN] 2024/10/21 - 13:27:17 | 500 |      5.2752ms |       127.0.0.1 | DELETE   "/email"
+[GIN] 2024/10/21 - 13:27:17 | 500 |      8.4294ms |       127.0.0.1 | DELETE   "/email"
+[GIN] 2024/10/21 - 14:49:38 | 500 |      4.4585ms |       127.0.0.1 | DELETE   "/email"
+[GIN] 2024/10/21 - 14:49:38 | 500 |       6.082ms |       127.0.0.1 | DELETE   "/email"
+2024/10/21 16:34:29 Server Shutdown: interrupt
+2024/10/21 16:34:29 Server exiting
+2024/10/21 17:33:09 Server exiting
+2024/10/21 17:33:51 Shutting down the server...
+2024/10/21 17:33:51 Server exiting
+2024/10/22 10:54:50 Shutting down the server.
