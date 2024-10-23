@@ -20,9 +20,15 @@ import (
 )
 
 func main() {
-	// get config file from cmd and laod configuration
+	// Define flags
+	pflag.String("config", "config.json", "Path to configuration file")
+	pflag.String("logdir", "./logs", "Directory for log files")
+
+	// Bind command-line flags to pflag
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 	pflag.Parse()
+
+	// Bind flags to viper
 	viper.BindPFlags(pflag.CommandLine)
 
 	cfile := strings.Split(viper.GetString("config"), ".")
