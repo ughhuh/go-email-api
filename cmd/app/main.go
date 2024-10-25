@@ -38,7 +38,11 @@ func main() {
 	// set mode
 	gin.SetMode(viper.GetString("mode"))
 
-	router := gin.Default()
+	// Initialize database
+	db := connectToDb()
+	defer db.Close()
+
+	router := gin.New()
 	router.SetTrustedProxies(viper.GetStringSlice("trusted_proxies"))
 
 	if viper.IsSet("logrotate") {
@@ -58,13 +62,14 @@ func main() {
 
 		router.Use(gin.LoggerWithWriter(multiWriter))
 		router.Use(gin.RecoveryWithWriter(multiWriter))
+	} else {
+		router.Use(gin.LoggerWithWriter(log.Writer()))
+		router.Use(gin.RecoveryWithWriter(log.Writer()))
 	}
 
 	// set middleware
-	router.Use(SetDatabase())
-	router.Use(gin.LoggerWithWriter(log.Writer()))
-	router.Use(gin.RecoveryWithWriter(log.Writer()))
-	router.Use(gin.Recovery())
+	router.Use(SetDatabase(db))
+	router.Use(PrepareSQLQueries())
 
 	// set routers
 	router.GET("/inbox/:email_id", getEmailsForUser)
@@ -106,6 +111,7 @@ func main() {
 			log.Println("Shutting down the server.")
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
+
 			if err := srv.Shutdown(ctx); err != nil {
 				log.Fatal("Server forced to shutdown: ", err)
 			}
@@ -116,15 +122,18 @@ func main() {
 
 func configLoader(configName string, configType string) {
 	viper.SetConfigName(".env")
-	viper.AddConfigPath(".")     // look in current dir
-	viper.AddConfigPath("..")    // look in parent dir
-	viper.AddConfigPath("../..") // look in parent-parent dir
-	viper.ReadInConfig()         // read env file
+	viper.SetConfigType("env")
+	viper.AddConfigPath(".")    // look in current dir
+	err := viper.ReadInConfig() // read env file
+	if err != nil {
+		log.Printf("Warning: Could not read .env file: %s", err)
+	}
+	viper.AutomaticEnv()
 
 	viper.SetConfigName(configName)
 	viper.SetConfigType(configType)
 
-	err := viper.ReadInConfig() // read the config file
+	err = viper.MergeInConfig() // read the config file
 	if err != nil {
 		log.Panicf("Error when reading config file: %s", err)
 	}
@@ -135,11 +144,10 @@ func configLoader(configName string, configType string) {
 // middleware
 
 // global database setter
-func SetDatabase() gin.HandlerFunc {
+func SetDatabase(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		db := connectToDb()
-		defer db.Close()
 		c.Set("db", db)
+		c.Next()
 	}
 }
 

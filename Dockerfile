@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM golang:1.22
+FROM golang:1.22 AS build
 
 # Set destination for copying
 WORKDIR /app
@@ -17,6 +17,11 @@ COPY ./cmd/app/*.go ./
 
 # build
 RUN CGO_ENABLED=0 GOOS=linux go build -o /docker-email-api
+
+FROM scratch AS run
+
+# copy essentials from the build stage
+COPY --from=build /docker-email-api /app/config.json /app/.env /app/logs/ /
 
 # expose port
 EXPOSE 8080
