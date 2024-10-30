@@ -21,6 +21,7 @@ var queries_map = map[string]string{
 func connectToDb() *sql.DB {
 	connStr := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=%s",
 		viper.GetString("DB_HOST"), viper.GetString("DB_USER"), viper.GetString("DB_SECRET"), viper.GetString("DB_NAME"), viper.GetString("ssl_mode"))
+	fmt.Print(connStr)
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		log.Fatal(err)

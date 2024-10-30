@@ -9,7 +9,7 @@
         "127.0.0.1"
     ],
     "logrotate": {
-        "log_file": "./log/go-email-api/api.log",
+        "log_file": "api.log",
         "max_size": 10,
         "max_backups": 3,
         "max_age": 28,

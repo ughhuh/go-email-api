@@ -19,6 +19,7 @@ FROM scratch AS run
 
 # copy build from the previous stage
 COPY --from=build /docker-email-api /
+COPY config.json /
 
 # expose port
 EXPOSE 8080

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"flag"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -31,6 +32,7 @@ func main() {
 	// Bind flags to viper
 	viper.BindPFlags(pflag.CommandLine)
 
+	ensureLogDirectory(viper.GetString("logdir"))
 	cfile := strings.Split(viper.GetString("config"), ".")
 
 	configLoader(cfile[0], cfile[1])
@@ -54,6 +56,8 @@ func main() {
 			Compress:   viper.GetBool("logrotate.compress"),
 		}
 
+		ensureLogFile(viper.GetString("logrotate.log_file"))
+
 		// set output to both console and log rotator
 		multiWriter := io.MultiWriter(logFile, os.Stdout)
 
@@ -70,6 +74,25 @@ func main() {
 	// set middleware
 	router.Use(SetDatabase(db))
 	router.Use(PrepareSQLQueries())
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// db ping every 10 seconds
+	go func(ctx context.Context) {
+		for {
+			select {
+			case <-ctx.Done():
+				fmt.Println("Ctx cancelled")
+				return
+			default:
+				if err := db.Ping(); err != nil {
+					log.Printf("Database connection is down: %v", err)
+				}
+				time.Sleep(10 * time.Second)
+			}
+		}
+	}(ctx)
 
 	// set routers
 	router.GET("/inbox/:email_id", getEmailsForUser)
@@ -161,6 +184,31 @@ func PrepareSQLQueries() gin.HandlerFunc {
 				log.Panicf("Error when preparing a query: %s", err)
 			}
 			c.Set(key, cache)
+		}
+	}
+}
+
+func ensureLogDirectory(logdir string) {
+	if _, err := os.Stat(logdir); os.IsNotExist(err) {
+		err := os.Mkdir(logdir, os.ModePerm)
+		if err != nil {
+			log.Fatalf("Failed to create log directory: %v", err)
+		}
+	}
+}
+
+func ensureLogFile(filename string) {
+	// Check if the file exists
+	if _, err := os.Stat(filename); err != nil {
+		if os.IsNotExist(err) {
+			// File does not exist, create it
+			file, err := os.Create(filename)
+			if err != nil {
+				log.Fatal("failed to create file: %w", err)
+			}
+			defer file.Close()
+		} else {
+			log.Fatal("error checking file: %w", err)
 		}
 	}
 }
