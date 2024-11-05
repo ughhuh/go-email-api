@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"math/rand"
+	"slices"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -31,16 +32,16 @@ type SimpleEmail struct {
 
 type CreateEmailRequest struct {
 	Username string `json:"username"`
+	Domain   string `json:"domain"`
 }
 
 func getEmailsForUser(c *gin.Context) {
 	// get id from uri
 	email := c.Param("email_id")
-	// query := `select message_id, "from", date" from emails where message_id in (select mail_id from inboxes where user_id = $1);`
 	smtm := c.MustGet("getSimpleEmailByMsgId").(*sql.Stmt)
 	rows, err := smtm.Query(email)
 	if err != nil {
-		c.JSON(500, gin.H{"error": "Failed to retrieve emails."})
+		c.JSON(500, gin.H{"success": false, "error": "Failed to retrieve emails."})
 		return
 	}
 	defer rows.Close()
@@ -49,13 +50,13 @@ func getEmailsForUser(c *gin.Context) {
 		var entry SimpleEmail
 		err = rows.Scan(&entry.MessageId, &entry.From, &entry.Date)
 		if err != nil {
-			c.JSON(500, gin.H{"error": "An error occured while parsing email records."})
+			c.JSON(500, gin.H{"success": false, "error": "An error occured while parsing email records."})
 			return
 		}
 		emails = append(emails, entry)
 	}
 
-	c.JSON(200, gin.H{"emails": emails})
+	c.JSON(200, gin.H{"success": true, "emails": emails})
 }
 
 func getEmailById(c *gin.Context) {
@@ -63,7 +64,7 @@ func getEmailById(c *gin.Context) {
 	smtm := c.MustGet("getEmailByMsgId").(*sql.Stmt)
 	rows, err := smtm.Query(emailID)
 	if err != nil {
-		c.JSON(500, gin.H{"error": "Failed to retrieve emails."})
+		c.JSON(500, gin.H{"success": false, "error": "Failed to retrieve emails."})
 		return
 	}
 	defer rows.Close()
@@ -71,36 +72,45 @@ func getEmailById(c *gin.Context) {
 	for rows.Next() {
 		err = rows.Scan(&email.MessageId, &email.Body, pq.Array(&email.From), pq.Array(&email.To))
 		if err != nil {
-			c.JSON(500, gin.H{"error": "An error occured while parsing email records."})
+			c.JSON(500, gin.H{"success": false, "error": "An error occured while parsing email records."})
 			return
 		}
 	}
-	c.JSON(200, gin.H{"email": email})
+	c.JSON(200, email)
 }
 
 func createNewInbox(c *gin.Context) {
-	// perhaps i should allow to custom make
 	var requestBody CreateEmailRequest
 	err := json.NewDecoder(c.Request.Body).Decode(&requestBody)
 	if err != nil {
-		c.JSON(400, gin.H{"error": "Invalid request format"})
+		c.JSON(400, gin.H{"success": false, "error": "Invalid request format"})
 		return
 	}
 	if requestBody.Username == "" {
 		requestBody.Username = uuid.NewString()
 	}
+	var address string
 	allowedDomains := viper.GetStringSlice("allowed_domains")
-	domainIndex := rand.Intn(len(allowedDomains))
-	username := requestBody.Username + "@" + allowedDomains[domainIndex]
-	// post new inbox
+	if requestBody.Domain == "" {
+		domainIndex := rand.Intn(len(allowedDomains))
+		address = requestBody.Username + "@" + allowedDomains[domainIndex]
+	} else {
+		if slices.Contains(allowedDomains, requestBody.Domain) {
+			address = requestBody.Username + "@" + requestBody.Domain
+		} else {
+			c.JSON(400, gin.H{"success": false, "error": "Invalid domain name."})
+			return
+		}
+	}
+	// create new inbox
 	smtm := c.MustGet("createNewUser").(*sql.Stmt)
-	_, err = smtm.Exec(username)
+	_, err = smtm.Exec(address)
 	if err != nil {
-		c.JSON(500, gin.H{"error": "Failed to create new email address."})
+		c.JSON(500, gin.H{"success": false, "error": "Failed to create new email address."})
 		return
 	}
 	// send new inbox to user
-	c.JSON(201, gin.H{"email": username})
+	c.JSON(201, gin.H{"success": true, "email_address": address})
 }
 
 func deleteInbox(c *gin.Context) {
@@ -108,11 +118,11 @@ func deleteInbox(c *gin.Context) {
 	var requestBody User
 	err := json.NewDecoder(c.Request.Body).Decode(&requestBody)
 	if err != nil {
-		c.JSON(400, gin.H{"error": "Invalid request format"})
+		c.JSON(400, gin.H{"success": false, "error": "Invalid request format"})
 		return
 	}
 	if requestBody.Address == "" {
-		c.JSON(400, gin.H{"error": "Invalid email."})
+		c.JSON(400, gin.H{"success": false, "error": "Invalid email address."})
 		return
 	}
 	// get emails
@@ -128,7 +138,7 @@ func deleteInbox(c *gin.Context) {
 		var entry string
 		err = rows.Scan(&entry)
 		if err != nil {
-			c.JSON(500, gin.H{"error": "An error occured while parsing email records."})
+			c.JSON(500, gin.H{"success": false, "error": "An error occured while parsing email records."})
 			return
 		}
 		emails = append(emails, entry)
@@ -138,7 +148,7 @@ func deleteInbox(c *gin.Context) {
 	_, err = smtm.Exec(requestBody.Address)
 
 	if err != nil {
-		c.JSON(500, gin.H{"error": "Failed to delete email user."})
+		c.JSON(500, gin.H{"success": false, "error": "Failed to delete email user."})
 		return
 	}
 	// delete email entries
@@ -147,10 +157,10 @@ func deleteInbox(c *gin.Context) {
 		_, err = smtm.Exec(requestBody.Address)
 
 		if err != nil {
-			c.JSON(500, gin.H{"error": "Failed to delete user's emails."})
+			c.JSON(500, gin.H{"success": false, "error": "Failed to delete user's emails."})
 			return
 		}
 	}
 
-	c.JSON(200, gin.H{"message": "User and associated emails deleted successfully"})
+	c.JSON(200, gin.H{"success": true})
 }

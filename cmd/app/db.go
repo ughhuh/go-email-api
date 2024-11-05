@@ -15,7 +15,7 @@ var queries_map = map[string]string{
 	"getMsgIdByUserId":      `select mail_id from inboxes where user_id = $1`,
 	"createNewUser":         `INSERT INTO users(email_address) values ($1);`,
 	"deleteUserByUserId":    `DELETE FROM users WHERE email_address = $1;`,
-	"deleteMsgByMsgId":      `delete from emails where message_id = ANY($1)`,
+	"deleteMsgByMsgId":      `delete from emails where message_id = $1`,
 }
 
 func connectToDb() *sql.DB {

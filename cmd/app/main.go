@@ -111,7 +111,7 @@ func main() {
 	// init server as goroutine and listen for exceptions on main thread
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Listen: %s\n", err)
+			log.Fatalf("Server failed to start: %s\n", err)
 		}
 	}()
 
@@ -126,11 +126,11 @@ func main() {
 	for signal := range signalChannel {
 		switch signal {
 		case syscall.SIGHUP:
-			// reload
+			// reload jk
 			log.Println("Caught hangup")
 		default:
 			// The context is used to inform the server it has 5 seconds to finish
-			// the request it is currently
+			// the request it is currently processing
 			log.Println("Shutting down the server.")
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
