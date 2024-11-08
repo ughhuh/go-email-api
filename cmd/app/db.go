@@ -11,11 +11,11 @@ import (
 
 var queries_map = map[string]string{
 	"getSimpleEmailByMsgId": `SELECT message_id, "from", date FROM emails WHERE message_id IN (SELECT mail_id FROM inboxes WHERE user_id = $1);`,
-	"getEmailByMsgId":       `SELECT message_id, body, "from", "to" FROM emails WHERE message_id = $1`,
-	"getMsgIdByUserId":      `select mail_id from inboxes where user_id = $1`,
+	"getEmailByMsgId":       `SELECT message_id, body, "from", "to" FROM emails WHERE message_id = $1;`,
+	"getMsgIdsByUserId":     `SELECT mail_id FROM inboxes WHERE user_id = $1 GROUP BY mail_id HAVING COUNT(DISTINCT user_id) = 1;`,
 	"createNewUser":         `INSERT INTO users(email_address) values ($1);`,
 	"deleteUserByUserId":    `DELETE FROM users WHERE email_address = $1;`,
-	"deleteMsgByMsgId":      `delete from emails where message_id = $1`,
+	"deleteMsgByMsgId":      `delete from emails where message_id = $1;`,
 }
 
 func connectToDb() *sql.DB {

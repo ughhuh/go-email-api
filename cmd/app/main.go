@@ -95,8 +95,8 @@ func main() {
 	}(ctx)
 
 	// set routers
-	router.GET("/inbox/:email_id", getEmailsForUser)
-	router.GET("/email/:email_id", getEmailById)
+	router.GET("/inbox/:address", getEmailsForUser)
+	router.GET("/email/:message_id", getEmailById)
 	router.POST("/email", createNewInbox)
 	router.DELETE("/email", deleteInbox)
 

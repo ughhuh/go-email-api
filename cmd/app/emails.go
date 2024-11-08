@@ -37,7 +37,7 @@ type CreateEmailRequest struct {
 
 func getEmailsForUser(c *gin.Context) {
 	// get id from uri
-	email := c.Param("email_id")
+	email := c.Param("address")
 	smtm := c.MustGet("getSimpleEmailByMsgId").(*sql.Stmt)
 	rows, err := smtm.Query(email)
 	if err != nil {
@@ -60,15 +60,21 @@ func getEmailsForUser(c *gin.Context) {
 }
 
 func getEmailById(c *gin.Context) {
-	emailID := c.Param("email_id")
+	emailID := c.Param("message_id")
 	smtm := c.MustGet("getEmailByMsgId").(*sql.Stmt)
 	rows, err := smtm.Query(emailID)
 	if err != nil {
-		c.JSON(500, gin.H{"success": false, "error": "Failed to retrieve emails."})
+		c.JSON(500, gin.H{"success": false, "error": "Failed to retrieve the email."})
 		return
 	}
 	defer rows.Close()
 	var email Email
+
+	if !rows.Next() {
+		c.JSON(404, gin.H{"success": false, "error": "Email not found."})
+		return
+	}
+
 	for rows.Next() {
 		err = rows.Scan(&email.MessageId, &email.Body, pq.Array(&email.From), pq.Array(&email.To))
 		if err != nil {
@@ -126,7 +132,7 @@ func deleteInbox(c *gin.Context) {
 		return
 	}
 	// get emails
-	smtm := c.MustGet("getMsgIdByUserId").(*sql.Stmt)
+	smtm := c.MustGet("getMsgIdsByUserId").(*sql.Stmt)
 	rows, err := smtm.Query(requestBody.Address)
 
 	if err != nil {
