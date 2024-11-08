@@ -21,18 +21,16 @@ import (
 )
 
 func main() {
-	// Define flags
+	// define flags
 	pflag.String("config", "config.json", "Path to configuration file")
-	pflag.String("logdir", "./logs", "Directory for log files")
 
-	// Bind command-line flags to pflag
+	// bind command-line flags to pflag
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 	pflag.Parse()
 
-	// Bind flags to viper
+	// bind flags to viper
 	viper.BindPFlags(pflag.CommandLine)
 
-	ensureLogDirectory(viper.GetString("logdir"))
 	cfile := strings.Split(viper.GetString("config"), ".")
 
 	configLoader(cfile[0], cfile[1])
@@ -40,11 +38,13 @@ func main() {
 	// set mode
 	gin.SetMode(viper.GetString("mode"))
 
-	// Initialize database
+	// initialize database connection
 	db := connectToDb()
 	defer db.Close()
 
+	// create new gin router
 	router := gin.New()
+	// set trusted proxies
 	router.SetTrustedProxies(viper.GetStringSlice("trusted_proxies"))
 
 	if viper.IsSet("logrotate") {
@@ -56,6 +56,7 @@ func main() {
 			Compress:   viper.GetBool("logrotate.compress"),
 		}
 
+		// create log file if needed
 		ensureLogFile(viper.GetString("logrotate.log_file"))
 
 		// set output to both console and log rotator
@@ -67,6 +68,7 @@ func main() {
 		router.Use(gin.LoggerWithWriter(multiWriter))
 		router.Use(gin.RecoveryWithWriter(multiWriter))
 	} else {
+		// if logrotate isn't used/set, log to stdout
 		router.Use(gin.LoggerWithWriter(log.Writer()))
 		router.Use(gin.RecoveryWithWriter(log.Writer()))
 	}
@@ -126,10 +128,10 @@ func main() {
 	for signal := range signalChannel {
 		switch signal {
 		case syscall.SIGHUP:
-			// reload jk
+			// todo: add configuration reload
 			log.Println("Caught hangup")
 		default:
-			// The context is used to inform the server it has 5 seconds to finish
+			// the context is used to inform the server it has 5 seconds to finish
 			// the request it is currently processing
 			log.Println("Shutting down the server.")
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -143,6 +145,7 @@ func main() {
 	}
 }
 
+// Loads .env file, environment variables and configuration file and sets them as Viper variables
 func configLoader(configName string, configType string) {
 	viper.SetConfigName(".env")
 	viper.SetConfigType("env")
@@ -166,7 +169,7 @@ func configLoader(configName string, configType string) {
 
 // middleware
 
-// global database setter
+// Sets the database instance `db` as a context variable
 func SetDatabase(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Set("db", db)
@@ -174,7 +177,7 @@ func SetDatabase(db *sql.DB) gin.HandlerFunc {
 	}
 }
 
-// sql query preparing
+// Prepares SQL queries listed in `queries_map` and sets them as context variables
 func PrepareSQLQueries() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		db := c.MustGet("db").(*sql.DB)
@@ -188,15 +191,7 @@ func PrepareSQLQueries() gin.HandlerFunc {
 	}
 }
 
-func ensureLogDirectory(logdir string) {
-	if _, err := os.Stat(logdir); os.IsNotExist(err) {
-		err := os.Mkdir(logdir, os.ModePerm)
-		if err != nil {
-			log.Fatalf("Failed to create log directory: %v", err)
-		}
-	}
-}
-
+// Checks if the log file exists and creates one if needed
 func ensureLogFile(filename string) {
 	// Check if the file exists
 	if _, err := os.Stat(filename); err != nil {

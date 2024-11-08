@@ -9,6 +9,8 @@ import (
 	"github.com/spf13/viper"
 )
 
+// Database queries
+// Tables and columns are hardcoded, change if needed
 var queries_map = map[string]string{
 	"getSimpleEmailByMsgId": `SELECT message_id, "from", date FROM emails WHERE message_id IN (SELECT mail_id FROM inboxes WHERE user_id = $1);`,
 	"getEmailByMsgId":       `SELECT message_id, body, "from", "to" FROM emails WHERE message_id = $1;`,
@@ -18,6 +20,7 @@ var queries_map = map[string]string{
 	"deleteMsgByMsgId":      `delete from emails where message_id = $1;`,
 }
 
+// Creates a database connection with the Viper variables
 func connectToDb() *sql.DB {
 	connStr := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=%s",
 		viper.GetString("DB_HOST"), viper.GetString("DB_USER"), viper.GetString("DB_SECRET"), viper.GetString("DB_NAME"), viper.GetString("ssl_mode"))
@@ -28,6 +31,3 @@ func connectToDb() *sql.DB {
 	}
 	return db
 }
-
-// so on init we can call a function that creates an object that prepares queries
-// then those queries are fetched by router functions and executed there
