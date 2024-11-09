@@ -13,6 +13,6 @@
         "max_size": 10,
         "max_backups": 3,
         "max_age": 28,
-        "compress": true
+        "compress": false
     }
 }
